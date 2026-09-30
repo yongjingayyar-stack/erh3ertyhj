@@ -10,7 +10,8 @@ export function buildKnight(){
         curse=mk(0x7a3fbf,.4,.4);
 
   const root=new THREE.Group();                 // placed at feet level
-  const hips=new THREE.Group(); hips.position.y=1.0; root.add(hips);
+  const body=new THREE.Group(); root.add(body); // lean/roll pivot (feet stay planted)
+  const hips=new THREE.Group(); hips.position.y=1.0; body.add(hips);
 
   // pelvis + belt
   const pelvis=new THREE.Mesh(new THREE.BoxGeometry(.52,.26,.34),dark); hips.add(pelvis);
@@ -83,5 +84,5 @@ export function buildKnight(){
 
   root.traverse(o=>{ if(o.isMesh){o.castShadow=true;} });
 
-  return {root,hips,spine,neck,head:neck,armL,armR,legL,legR,weapon,shield,gem,blade,runeLine,visor,cape,capeMeshes,pauldronL,pauldronR};
+  return {root,body,hips,spine,neck,head:neck,armL,armR,legL,legR,weapon,shield,gem,blade,runeLine,visor,cape,capeMeshes,pauldronL,pauldronR};
 }
