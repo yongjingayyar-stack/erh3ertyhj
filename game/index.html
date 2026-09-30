@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>GRIMWALD — Cursed Blade of the Dark Age</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+  <canvas id="c"></canvas>
+
+  <!-- ============ LOADING / TITLE ============ -->
+  <div id="title-screen">
+    <div class="title-glow"></div>
+    <h1 class="game-title">GRIMWALD</h1>
+    <h2 class="game-sub">— Cursed Blade of the Dark Age —</h2>
+    <div class="title-controls">
+      <div class="tc-col">
+        <b>MOVEMENT</b>
+        <span>W A S D — Move</span>
+        <span>SHIFT(L) — Sprint</span>
+        <span>SPACE — Jump / Double Jump</span>
+        <span>Q — Dash / Perfect Dodge</span>
+        <span>CTRL — Crouch</span>
+      </div>
+      <div class="tc-col">
+        <b>COMBAT</b>
+        <span>LMB — Light Attack (combo)</span>
+        <span>R — Heavy Attack</span>
+        <span>RMB — Parry / Block (hold)</span>
+        <span>E — Ultimate: Curse Release</span>
+        <span>RSHIFT — Lock-On</span>
+      </div>
+      <div class="tc-col">
+        <b>SYSTEM</b>
+        <span>MOUSE — Camera</span>
+        <span>M — Menu (Stats/Loot/Gear)</span>
+        <span>F — Interact / Loot</span>
+        <span>ESC — Release mouse</span>
+      </div>
+    </div>
+    <button id="btn-start">⚔ ENTER THE CURSED LANDS ⚔</button>
+    <p class="title-hint">Click to capture mouse · Best with headphones of madness</p>
+  </div>
+
+  <!-- ============ HUD ============ -->
+  <div id="hud" class="hidden">
+    <!-- top-left: player vitals -->
+    <div id="vitals">
+      <div class="orb-row">
+        <div id="hp-orb"><div id="hp-orb-fill"></div><div id="hp-text">100/100</div></div>
+        <div id="stamina-wrap">
+          <div class="bar-label">STAMINA</div>
+          <div id="stamina-bar"><div id="stamina-fill"></div></div>
+        </div>
+      </div>
+      <div id="ult-wrap">
+        <div class="bar-label">CURVE GAUGE — <kbd>E</kbd></div>
+        <div id="ult-bar"><div id="ult-fill"></div></div>
+      </div>
+      <div id="lvl-badge">LV <span id="lvl-num">1</span></div>
+      <div id="xp-wrap">
+        <div class="bar-label">EXP</div>
+        <div id="xp-bar"><div id="xp-fill"></div></div>
+      </div>
+    </div>
+
+    <!-- boss bar -->
+    <div id="boss-bar" class="hidden">
+      <div id="boss-name">THE GRAVE WARDEN</div>
+      <div id="boss-hp-outer"><div id="boss-hp-inner"></div></div>
+    </div>
+
+    <!-- lock-on indicator + enemy health -->
+    <div id="lockon-ui" class="hidden">
+      <div id="lockon-name">Hollow Knight</div>
+      <div id="lockon-hp-outer"><div id="lockon-hp-inner"></div></div>
+    </div>
+
+    <!-- center feedback stack: parry/dodge/crit popups -->
+    <div id="feedback-stack"></div>
+
+    <!-- combo counter -->
+    <div id="combo-counter" class="hidden">
+      <div id="combo-num">0</div>
+      <div id="combo-label">HITS</div>
+    </div>
+
+    <!-- bottom right: skill hints -->
+    <div id="skill-rail">
+      <div class="skill" id="sk-dash"><kbd>Q</kbd><span>DASH</span></div>
+      <div class="skill" id="sk-heavy"><kbd>R</kbd><span>HEAVY</span></div>
+      <div class="skill" id="sk-parry"><kbd>RMB</kbd><span>PARRY</span></div>
+      <div class="skill" id="sk-ult"><kbd>E</kbd><span>CURSE</span></div>
+    </div>
+
+    <!-- bottom left: item toast log -->
+    <div id="toast-log"></div>
+
+    <!-- wave banner -->
+    <div id="wave-banner" class="hidden">
+      <div id="wave-title">HORDE I</div>
+      <div id="wave-sub">The cursed ones approach…</div>
+    </div>
+
+    <!-- damage flash & vignette overlays -->
+    <div id="dmg-flash"></div>
+    <div id="curse-vignette"></div>
+    <div id="slowmo-tint"></div>
+
+    <!-- crosshair-ish dot -->
+    <div id="cam-dot"></div>
+  </div>
+
+  <!-- ============ MENU (M) ============ -->
+  <div id="menu-overlay" class="hidden">
+    <div id="menu-panel">
+      <div id="menu-tabs">
+        <button class="mtab active" data-tab="stats">STATS</button>
+        <button class="mtab" data-tab="inventory">INVENTORY</button>
+        <button class="mtab" data-tab="equipment">EQUIPMENT</button>
+        <button class="mtab" data-tab="skills">SKILLS</button>
+        <button class="mtab" data-tab="bestiary">BESTIARY</button>
+      </div>
+      <div id="menu-body">
+        <section id="tab-stats"></section>
+        <section id="tab-inventory" class="hidden"></section>
+        <section id="tab-equipment" class="hidden"></section>
+        <section id="tab-skills" class="hidden"></section>
+        <section id="tab-bestiary" class="hidden"></section>
+      </div>
+      <div id="menu-footer">Press <kbd>M</kbd> to resume the slaughter</div>
+    </div>
+  </div>
+
+  <!-- level up flourish -->
+  <div id="levelup-flash" class="hidden">
+    <div id="levelup-text">LEVEL UP</div>
+    <div id="levelup-sub">+5 Max HP · Curse attuned</div>
+  </div>
+
+  <!-- death screen -->
+  <div id="death-screen" class="hidden">
+    <h1>YOU DIED</h1>
+    <p>The curse consumes all…</p>
+    <button id="btn-respawn">RISE AGAIN</button>
+  </div>
+
+  <!-- victory screen -->
+  <div id="win-screen" class="hidden">
+    <h1>CURSE BANISHED</h1>
+    <p id="win-stats"></p>
+    <button id="btn-again">RIDE ANEW</button>
+  </div>
+
+  <script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
