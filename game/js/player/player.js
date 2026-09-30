@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { Anims, animHitCheck } from './anims.js';
 import { buildKnight } from './model.js';
-import { clamp, lerp, angleWrap, approachAngle, rand, dist2, easeOutCubic } from '../core/mathx.js';
+import { clamp, lerp, smoothstep, angleWrap, approachAngle, rand, dist2, easeOutCubic } from '../core/mathx.js';
 import { GameState, FXBus } from '../core/state.js';
 
 const GRAV=-26;
@@ -205,7 +205,8 @@ export class Player {
       this.facing=approachAngle(this.facing,wantFace,dt*16);
       // roll tilt into strafes/dashes for flair
       const sideDot=Math.sin(angleWrap(wantFace-camYaw));
-      this.rollTilt=lerp(this.rollTilt,-sideDot*(this.sprinting?0.06:0.03),dt*6);
+      // lean INTO the turn (matches camera roll sign convention)
+      this.rollTilt=lerp(this.rollTilt,sideDot*(this.sprinting?0.06:0.03),dt*6);
     } else {
       this.rollTilt=lerp(this.rollTilt,0,dt*6);
     }
@@ -452,10 +453,18 @@ export class Player {
 
   // ---------- procedural animation mixer ----------
   updateAnim(dt){
-    // advance with REAL time during hit-stop so recovery still ticks; slow-mo should stretch though
-    this.animT += GameState.timeScale>=1? Math.min(0.05,GameState.realTime-(this._lastAnimReal||GameState.realTime)) : dt;
-    this._lastAnimReal=GameState.realTime;
     const rig=this.rig;
+    // advance with REAL time during hit-stop so recovery still ticks; slow-mo stretches it
+    const rawRT=Math.min(0.05,GameState.realTime-(this._lastAnimReal||GameState.realTime));
+    this._lastAnimReal=GameState.realTime;
+    // clamp the anim-clock delta to ONE rendered frame's worth — a stable clock
+    // is what keeps combat poses from strobing/jittering
+    const adv=clamp(GameState.timeScale>=1?rawRT:dt,0,0.034);
+    this.animT+=adv;
+
+    // capture the pose BEFORE any reset so we can crossfade out of it
+    const prevPose=capturePose(rig);
+
     // reset pose each frame to neutral before applying (prevents bone drift)
     rig.hips.rotation.set(0,0,0); rig.spine.rotation.set(0,0,0);
     rig.head.rotation.set(0,0,0); rig.neck.rotation.set(0,0,0);
@@ -464,8 +473,8 @@ export class Player {
     rig.weapon.rotation.set(0,0,0);
     rig.hips.position.y=1.0;
 
+    // resolve which clip plays this frame
     let name=this.animName;
-    // pick locomotion anims dynamically when not in action states
     const actionStates=['attack','dash','ult','parry','hit','land','dead'];
     if(!actionStates.includes(this.state)){
       if(this.state==='block') name='blockIdle';
@@ -474,33 +483,42 @@ export class Player {
       else if(this.state==='run') name='run';
       else if(this.state==='walk') name='walk';
       else name='idle';
-      this.anim=Anims[name];
+      this.anim=Anims[name]; this.animName=name;
+      // locomotion clips share one continuous phase clock so their sine cycles
+      // never restart/pop when switching idle↔walk↔run
+      if(name==='idle'||name==='walk'||name==='run'){
+        this._phase=(this._phase||0)+adv;
+        this.anim.onApply(rig,this._phase,name==='walk'||name==='run'?(this.sprinting?1.25:0.8):undefined);
+      } else if(name==='jump'){
+        this.anim.onApply(rig,this.animT,this.velY);
+      } else {
+        this.anim.onApply(rig,this.animT);
+      }
+    } else {
+      const a=this.anim;
+      if(a&&a.onApply){
+        const t=this.animT;
+        if(name==='jump') a.onApply(rig,t,this.velY);
+        else if(a.loop) a.onApply(rig,t);
+        else a.onApply(rig,t,clamp(t/a.dur,0,1));
+      }
     }
-    const a=this.anim;
-    if(!a)return;
-    const t=this.animT;
-    const u=a.loop? t : clamp(t/a.dur,0,1);
-    if(a.loop){ /* continuous phase uses raw t */ }
-    if(name==='jump') a.onApply(rig,t,this.velY);
-    else if(name==='walk'||name==='run') a.onApply(rig,t,this.sprinting?1.25:0.8);
-    else a.onApply(rig,name==='idle'||name==='walk'||name==='run'||name==='crouch'||name==='jump'||name==='blockIdle'?t:t,u);
 
-    // apply world transform
-    rig.root.position.copy(this.position);
-    rig.root.rotation.y=this.facing;
-    rig.root.rotation.z=0;
-    // cape sway: lag behind motion (cheap spring on each segment)
-    const spd=Math.hypot(this.lastVx||0,this.lastVz||0);
-    for(let i=0;i<rig.capeMeshes.length;i++){
-      const seg=rig.capeMeshes[i];
-      const target=-0.15-spd*0.03-i*0.04+Math.sin(GameState.realTime*3+i)*0.05;
-      seg.rotation.x=lerp(seg.rotation.x,target+(this.blocking?0.4:0),dt*8);
+    // ease non-looping action keys toward the previous frame's pose: kills
+    // single-frame spikes (the "tick disorder" look) while staying snappy
+    const w=(this.anim&&!this.anim.loop)?0.35:0;
+    blendPose(rig,prevPose,w);
+
+    // crossfade ~0.12s whenever the active clip changes (incl. into/out of attacks)
+    if(this._prevApplied!==undefined&&this._prevApplied!==name)this._fadeFrom=prevPose;
+    this._prevApplied=name;
+    if(this._fadeFrom){
+      const kf=clamp((this._fadeT||0)+adv/0.12,0,1);
+      blendPose(rig,this._fadeFrom,1-smoothstep(kf));
+      if(kf>=1){this._fadeFrom=null;this._fadeT=0;} else this._fadeT=kf;
     }
-    // gem & blade glow scale with curse gauge / ult state
-    const glow=this.ultActive?1:(this.curse/this.curseMax);
-    rig.gem.scale.setScalar(1+glow*0.6+Math.sin(GameState.realTime*6)*0.08*glow);
-    rig.runeLine.material.color.setHex(this.ultActive?0xe6b8ff:0xa44df0);
-    rig.visor.material.color.setHex(this.state==='dead'?0x331010:(this.ultActive?0xc77dff:0xff5a3c));
+
+    finishPose(this,rig,adv);
   }
 
   // sword tip trail (afterimage ribbon)
@@ -527,4 +545,53 @@ export class Player {
 
   // cape sway based on velocity & facing
   animateExtras(dt,vx,vz){}
+}
+
+// ---------- pose capture / blend helpers (crossfade support) ----------
+const POSE_BONES=(rig)=>([
+  ['hips',rig.hips],['spine',rig.spine],['head',rig.head],['neck',rig.neck],
+  ['armLsh',rig.armL.sh],['arm lel',rig.armL.el],['armRsh',rig.armR.sh],['armRel',rig.armR.el],
+  ['legLhip',rig.legL.hip],['legLknee',rig.legL.knee],['legRhip',rig.legR.hip],['legRknee',rig.legR.knee],
+  ['weapon',rig.weapon]
+]);
+function capturePose(rig){
+  const p={y:rig.hips.position.y};
+  for(const [k,b] of POSE_BONES(rig)) p[k]=[b.rotation.x,b.rotation.y,b.rotation.z];
+  return p;
+}
+function blendPose(rig,p,w){
+  if(w<=0)return;
+  rig.hips.position.y=lerp(rig.hips.position.y,p.y,w);
+  for(const [k,b] of POSE_BONES(rig)){
+    const q=p[k]; if(!q)continue;
+    b.rotation.x=lerp(b.rotation.x,q[0],w);
+    b.rotation.y=lerp(b.rotation.y,q[1],w);
+    b.rotation.z=lerp(b.rotation.z,q[2],w);
+  }
+}
+function speedArg(name,pl){ return name==='walk'||name==='run'?(pl.sprinting?1.25:0.8):(name==='jump'?pl.velY:undefined); }
+function applyAnim(a,rig,t,name,ph,pl){
+  if(!a||!a.onApply)return;
+  if(name==='jump') a.onApply(rig,t,pl.velY);
+  else if(name==='walk'||name==='run') a.onApply(rig,t,pl.sprinting?1.25:0.8);
+  else if(a.loop) a.onApply(rig,t);
+  else a.onApply(rig,t,clamp(t/a.dur,0,1));
+}
+function finishPose(pl,rig,adv){
+  // apply world transform
+  rig.root.position.copy(pl.position);
+  rig.root.rotation.y=pl.facing;
+  rig.root.rotation.z=0;
+  // cape sway: lag behind motion (cheap spring on each segment)
+  const spd=Math.hypot(pl.lastVx||0,pl.lastVz||0);
+  for(let i=0;i<rig.capeMeshes.length;i++){
+    const seg=rig.capeMeshes[i];
+    const target=-0.15-spd*0.03-i*0.04+Math.sin(GameState.realTime*3+i)*0.05;
+    seg.rotation.x=lerp(seg.rotation.x,target+(pl.blocking?0.4:0),adv*8);
+  }
+  // gem & blade glow scale with curse gauge / ult state
+  const glow=pl.ultActive?1:(pl.curse/pl.curseMax);
+  rig.gem.scale.setScalar(1+glow*0.6+Math.sin(GameState.realTime*6)*0.08*glow);
+  rig.runeLine.material.color.setHex(pl.ultActive?0xe6b8ff:0xa44df0);
+  rig.visor.material.color.setHex(pl.state==='dead'?0x331010:(pl.ultActive?0xc77dff:0xff5a3c));
 }
