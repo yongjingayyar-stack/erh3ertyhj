@@ -20,11 +20,10 @@ export class CombatCamera {
     camera.rotation.order='YXZ';
   }
 
-  // pitch limits so you can look under legs / at sky but never flip
-  // NOTE: signs follow standard third-person convention — move mouse RIGHT
-  // orbits the camera to the RIGHT, move mouse UP looks UP (not inverted).
+  // Horizontal axis is ROLL-inverted (mouse RIGHT orbits camera LEFT),
+  // vertical pitch stays standard (mouse UP looks UP).
   addLook(dx,dy){
-    this.yaw   += dx*this.sens;
+    this.yaw   -= dx*this.sens;
     this.pitch = clamp(this.pitch + dy*this.sens, -0.45, 1.25);
   }
   kick(pitch=0,yaw=0,fov=0){ this.kickPitch+=pitch; this.kickYaw+=yaw; this.fovPunch=Math.max(this.fovPunch,fov); }

@@ -504,16 +504,16 @@ export class Player {
       }
     }
 
-    // ease non-looping action keys toward the previous frame's pose: kills
-    // single-frame spikes (the "tick disorder" look) while staying snappy
-    const w=(this.anim&&!this.anim.loop)?0.35:0;
+    // light temporal smoothing (25%) — kills single-frame spikes while keeping
+    // strikes snappy; the eased keyframes themselves now do most of the work
+    const w=(this.anim&&!this.anim.loop)?0.25:0;
     blendPose(rig,prevPose,w);
 
-    // crossfade ~0.12s whenever the active clip changes (incl. into/out of attacks)
+    // crossfade ~0.1s whenever the active clip changes (incl. into/out of attacks)
     if(this._prevApplied!==undefined&&this._prevApplied!==name)this._fadeFrom=prevPose;
     this._prevApplied=name;
     if(this._fadeFrom){
-      const kf=clamp((this._fadeT||0)+adv/0.12,0,1);
+      const kf=clamp((this._fadeT||0)+adv/0.1,0,1);
       blendPose(rig,this._fadeFrom,1-smoothstep(kf));
       if(kf>=1){this._fadeFrom=null;this._fadeT=0;} else this._fadeT=kf;
     }
