@@ -118,150 +118,194 @@ Anims.dash={dur:0.34,onApply(rig,t,u){
 function slashWindup(setup){return (rig)=>{setup(rig);}}
 
 Anims.light1={dur:0.42,onApply(rig,t,u){
-  // diagonal overhead right-to-left (eased keys — no linear snap-throughs)
-  if(u<0.35){ const k=easeInOutCubic(u/0.35); // wind up high right
-    rig.spine.rotation.y=lerp(0,0.6,k); rig.spine.rotation.x=lerp(0,-0.2,k);
-    rig.armR.sh.rotation.x=lerp(0.2,1.45,k); rig.armR.sh.rotation.z=lerp(-0.1,-0.8,k);
-    rig.armR.el.rotation.x=lerp(-0.3,-1.35,k);
-    rig.weapon.rotation.set(-0.6,0,0.9);
-    rig.hips.rotation.y=lerp(0,0.3,k);
-  } else if(u<0.55){ const k=easeInQuad((u-0.35)/0.2); // accelerate down across
-    rig.spine.rotation.y=lerp(0.6,-0.7,k); rig.spine.rotation.x=lerp(-0.2,0.15,k);
-    rig.armR.sh.rotation.x=lerp(1.45,-0.8,k); rig.armR.sh.rotation.z=lerp(-0.8,0.45,k);
-    rig.armR.el.rotation.x=lerp(-1.35,-0.15,k);
-    rig.weapon.rotation.set(lerp(-0.6,0.9,k),0,lerp(0.9,-0.5,k));
-    rig.hips.rotation.y=lerp(0.3,-0.45,k);
-    rig.legR.hip.rotation.x=0.3*k; rig.legR.knee.rotation.x=-0.3*k;
-  } else { const k=easeOutCubic((u-0.55)/0.45); // settle smoothly back to guard
-    rig.spine.rotation.y=lerp(-0.7,0.15,k); rig.spine.rotation.x=lerp(0.15,0.05,k);
-    rig.armR.sh.rotation.x=lerp(-0.9,-0.2,k); rig.armR.sh.rotation.z=lerp(0.5,-0.15,k);
+  // diagonal overhead right-to-left with full-body coiling torque
+  if(u<0.35){ const k=easeInOutCubic(u/0.35); // coil: load onto back leg, torso winds past the hips
+    rig.spine.rotation.y=lerp(0,0.85,k); rig.spine.rotation.x=lerp(0,-0.3,k);
+    rig.armR.sh.rotation.x=lerp(0.2,1.6,k); rig.armR.sh.rotation.z=lerp(-0.1,-0.95,k);
+    rig.armR.el.rotation.x=lerp(-0.3,-1.45,k);
+    rig.weapon.rotation.set(lerp(-0.6,-0.9,k),0,lerp(0.9,1.3,k));
+    rig.hips.rotation.y=lerp(0,0.45,k);
+    rig.hips.position.y=1.0-k*0.05;
+    rig.neck.rotation.x=lerp(0,-0.15,k);
+    rig.legR.hip.rotation.x=-k*0.3; rig.legR.knee.rotation.x=k*0.45; // load the rear leg
+    rig.legL.hip.rotation.x=k*0.15;
+  } else if(u<0.55){ const k=easeInQuad((u-0.35)/0.2); // uncoil whip: hips lead, torso counter-rotates past center
+    rig.spine.rotation.y=lerp(0.85,-1.0,k); rig.spine.rotation.x=lerp(-0.3,0.25,k);
+    rig.armR.sh.rotation.x=lerp(1.6,-1.0,k); rig.armR.sh.rotation.z=lerp(-0.95,0.6,k);
+    rig.armR.el.rotation.x=lerp(-1.45,-0.1,k);
+    rig.weapon.rotation.set(lerp(-0.9,1.0,k),0,lerp(1.3,-0.7,k));
+    rig.hips.rotation.y=lerp(0.45,-0.65,k);
+    rig.hips.position.y=lerp(0.95,1.03,k);
+    rig.neck.rotation.x=lerp(-0.15,0.2,k);
+    rig.legR.hip.rotation.x=lerp(-0.3,0.45,k); rig.legR.knee.rotation.x=lerp(0.45,-0.15,k); // drive through into a step
+    rig.legL.hip.rotation.x=lerp(0.15,-0.1,k);
+  } else { const k=easeOutCubic((u-0.55)/0.45); // settle smoothly back to guard (carry momentum slightly long)
+    rig.spine.rotation.y=lerp(-1.0,0.15,k); rig.spine.rotation.x=lerp(0.25,0.05,k);
+    rig.armR.sh.rotation.x=lerp(-1.0,-0.2,k); rig.armR.sh.rotation.z=lerp(0.6,-0.15,k);
     rig.armR.el.rotation.x=lerp(-0.1,-0.8,k);
-    rig.weapon.rotation.set(0.9,-0.2,lerp(-0.5,0.2,k));
-    rig.hips.rotation.y=lerp(-0.45,-0.15,k);
+    rig.weapon.rotation.set(1.0,-0.2,lerp(-0.7,0.2,k));
+    rig.hips.rotation.y=lerp(-0.65,-0.15,k);
+    rig.hips.position.y=lerp(1.03,1.0,k);
+    rig.neck.rotation.x=lerp(0.2,0,k);
+    rig.legR.hip.rotation.x=lerp(0.45,0,k); rig.legR.knee.rotation.x=lerp(-0.15,0,k);
+    rig.legL.hip.rotation.x=lerp(-0.1,0,k);
   }
-  rig.armL.sh.rotation.x=-0.3; rig.armL.sh.rotation.z=0.35; rig.armL.el.rotation.x=-1.0; // shield guard side
-},hitAt:0.44, arc:{tilt:-0.4,roll:0.5,color:0xf0d27a}, rootMotion(u){return{f:bell(clamp((u-0.38)/0.34,0,1),1)*0.22,s:0,y:0};}};
+  rig.armL.sh.rotation.x=-0.3-S(clamp((u-0.3)/0.35,0,1)*PI)*0.5; // off-hand swings out for balance
+  rig.armL.sh.rotation.z=0.35; rig.armL.el.rotation.x=-1.0;
+},hitAt:0.44, arc:{tilt:-0.4,roll:0.5,color:0xf0d27a}, rootMotion(u){return{f:bell(clamp((u-0.3)/0.38,0,1),1)*0.42,s:0,y:0};}};
 
 Anims.light2={dur:0.40,onApply(rig,t,u){
-  // horizontal left sweep (reverse of 1)
+  // horizontal left sweep — torso whips through a full counter-rotation
   if(u<0.32){ const k=easeInOutCubic(u/0.32);
-    rig.spine.rotation.y=lerp(0.15,-0.7,k);
-    rig.armR.sh.rotation.x=lerp(-0.2,0.4,k); rig.armR.sh.rotation.z=lerp(-0.15,0.9,k);
-    rig.armR.el.rotation.x=lerp(-0.8,-0.4,k);
-    rig.weapon.rotation.set(0.2,0,lerp(0.2,1.2,k));
-    rig.hips.rotation.y=lerp(-0.15,-0.45,k);
+    rig.spine.rotation.y=lerp(0.15,-1.0,k); rig.spine.rotation.x=lerp(0.05,0.18,k);
+    rig.armR.sh.rotation.x=lerp(-0.2,0.5,k); rig.armR.sh.rotation.z=lerp(-0.15,1.05,k);
+    rig.armR.el.rotation.x=lerp(-0.8,-0.35,k);
+    rig.weapon.rotation.set(0.2,0,lerp(0.2,1.5,k));
+    rig.hips.rotation.y=lerp(-0.15,-0.6,k);
+    rig.hips.position.y=1.0-k*0.04;
+    rig.legL.hip.rotation.x=-k*0.25; rig.legL.knee.rotation.x=k*0.35; // load front leg
+    rig.neck.rotation.y=lerp(0,-0.2,k);
   } else if(u<0.52){ const k=easeInQuad((u-0.32)/0.2);
-    rig.spine.rotation.y=lerp(-0.7,0.8,k);
-    rig.armR.sh.rotation.x=lerp(0.4,-0.2,k); rig.armR.sh.rotation.z=lerp(0.9,-0.55,k);
-    rig.armR.el.rotation.x=lerp(-0.4,-0.2,k);
-    rig.weapon.rotation.set(lerp(0.2,0.6,k),0,lerp(1.2,-0.7,k));
-    rig.hips.rotation.y=lerp(-0.45,0.55,k);
-    rig.legL.hip.rotation.x=0.35*k;
+    rig.spine.rotation.y=lerp(-1.0,1.1,k); rig.spine.rotation.x=lerp(0.18,-0.1,k);
+    rig.armR.sh.rotation.x=lerp(0.5,-0.35,k); rig.armR.sh.rotation.z=lerp(1.05,-0.75,k);
+    rig.armR.el.rotation.x=lerp(-0.35,-0.1,k);
+    rig.weapon.rotation.set(lerp(0.2,0.7,k),0,lerp(1.5,-1.0,k));
+    rig.hips.rotation.y=lerp(-0.6,0.75,k);
+    rig.hips.position.y=lerp(0.96,1.04,k);
+    rig.legL.hip.rotation.x=lerp(-0.25,0.5,k); rig.legL.knee.rotation.x=lerp(0.35,-0.1,k); // stride through
+    rig.legR.hip.rotation.x=k*0.2;
+    rig.neck.rotation.y=lerp(-0.2,0.25,k);
   } else { const k=easeOutCubic((u-0.52)/0.48);
-    rig.spine.rotation.y=lerp(0.8,-0.2,k);
-    rig.armR.sh.rotation.x=lerp(-0.2,-0.5,k); rig.armR.sh.rotation.z=lerp(-0.55,-0.1,k);
-    rig.weapon.rotation.set(lerp(0.6,-0.4,k),0,lerp(-0.7,0.3,k));
-    rig.hips.rotation.y=lerp(0.55,-0.3,k);
+    rig.spine.rotation.y=lerp(1.1,-0.2,k); rig.spine.rotation.x=lerp(-0.1,0.05,k);
+    rig.armR.sh.rotation.x=lerp(-0.35,-0.5,k); rig.armR.sh.rotation.z=lerp(-0.75,-0.1,k);
+    rig.weapon.rotation.set(lerp(0.7,-0.4,k),0,lerp(-1.0,0.3,k));
+    rig.hips.rotation.y=lerp(0.75,-0.3,k);
+    rig.hips.position.y=lerp(1.04,1.0,k);
+    rig.legL.hip.rotation.x=lerp(0.5,0,k); rig.legL.knee.rotation.x=lerp(-0.1,0,k);
+    rig.legR.hip.rotation.x=lerp(0.2,0,k);
+    rig.neck.rotation.y=lerp(0.25,0,k);
   }
-  rig.armL.sh.rotation.x=-0.4; rig.armL.el.rotation.x=-0.9;
-},hitAt:0.42, arc:{tilt:1.4,roll:-0.3,color:0xf0d27a}, rootMotion(u){return{f:bell(clamp((u-0.3)/0.36,0,1),1)*0.25,s:0,y:0};}};
+  rig.armL.sh.rotation.x=-0.4-S(clamp((u-0.25)/0.35,0,1)*PI)*0.6; // off-arm flares for centrifugal balance
+  rig.armL.el.rotation.x=-0.9;
+},hitAt:0.42, arc:{tilt:1.4,roll:-0.3,color:0xf0d27a}, rootMotion(u){return{f:bell(clamp((u-0.24)/0.4,0,1),1)*0.45,s:0,y:0};}};
 
 Anims.light3={dur:0.46,onApply(rig,t,u){
-  // rising uppercut launcher
-  if(u<0.34){ const k=easeInOutCubic(u/0.34); // sink low
-    rig.hips.position.y=1.0-k*0.25;
-    rig.spine.rotation.x=lerp(0.05,0.45,k); rig.spine.rotation.y=lerp(-0.2,-0.6,k);
-    rig.armR.sh.rotation.x=lerp(-0.5,0.85,k); rig.armR.el.rotation.x=lerp(-0.2,-1.5,k);
-    rig.weapon.rotation.set(lerp(-0.4,1.9,k),0,0.4);
-    rig.legL.hip.rotation.x=-k*0.5; rig.legL.knee.rotation.x=k*0.7;
-    rig.legR.hip.rotation.x=-k*0.4; rig.legR.knee.rotation.x=k*0.6;
-  } else if(u<0.55){ const k=easeInQuad((u-0.34)/0.21); // explode upward
-    rig.hips.position.y=lerp(0.75,1.22,k);
-    rig.spine.rotation.x=lerp(0.45,-0.45,k); rig.spine.rotation.y=lerp(-0.6,0.35,k);
-    rig.armR.sh.rotation.x=lerp(0.85,-2.4,k); rig.armR.el.rotation.x=lerp(-1.5,-0.15,k);
-    rig.weapon.rotation.set(lerp(1.9,-1.1,k),0,lerp(0.4,0.1,k));
-    rig.legL.hip.rotation.x=lerp(-0.5,0.4,k); rig.legL.knee.rotation.x=lerp(0.7,0.2,k);
-    rig.legR.hip.rotation.x=lerp(-0.4,0.5,k);
+  // rising uppercut launcher — deep crouch coil, whole body launches up
+  if(u<0.34){ const k=easeInOutCubic(u/0.34); // sink low, twist in
+    rig.hips.position.y=1.0-k*0.3;
+    rig.spine.rotation.x=lerp(0.05,0.55,k); rig.spine.rotation.y=lerp(-0.2,-0.85,k);
+    rig.armR.sh.rotation.x=lerp(-0.5,1.0,k); rig.armR.el.rotation.x=lerp(-0.2,-1.6,k);
+    rig.weapon.rotation.set(lerp(-0.4,2.1,k),0,0.4);
+    rig.legL.hip.rotation.x=-k*0.6; rig.legL.knee.rotation.x=k*0.85;
+    rig.legR.hip.rotation.x=-k*0.5; rig.legR.knee.rotation.x=k*0.75;
+    rig.neck.rotation.x=k*0.25;
+    rig.armL.sh.rotation.x=lerp(-0.6,-1.1,k); // off-arm tucks down as we compress
+  } else if(u<0.55){ const k=easeInQuad((u-0.34)/0.21); // explode upward — legs extend, spine unarches past vertical
+    rig.hips.position.y=lerp(0.7,1.35,k);
+    rig.spine.rotation.x=lerp(0.55,-0.6,k); rig.spine.rotation.y=lerp(-0.85,0.5,k);
+    rig.armR.sh.rotation.x=lerp(1.0,-2.6,k); rig.armR.el.rotation.x=lerp(-1.6,-0.1,k);
+    rig.weapon.rotation.set(lerp(2.1,-1.3,k),0,lerp(0.4,0.1,k));
+    rig.legL.hip.rotation.x=lerp(-0.6,0.55,k); rig.legL.knee.rotation.x=lerp(0.85,0.1,k);
+    rig.legR.hip.rotation.x=lerp(-0.5,0.65,k); rig.legR.knee.rotation.x=lerp(0.75,0.05,k);
+    rig.neck.rotation.x=lerp(0.25,-0.35,k); // head follows the blade upward
+    rig.armL.sh.rotation.x=lerp(-1.1,-2.0,k); // off-arm swings UP with the launch
   } else { const k=easeOutCubic((u-0.55)/0.45);
-    rig.hips.position.y=lerp(1.22,1.0,k);
-    rig.spine.rotation.x=lerp(-0.45,0.1,k); rig.spine.rotation.y=lerp(0.35,0,k);
-    rig.armR.sh.rotation.x=lerp(-2.4,-0.2,k); rig.armR.el.rotation.x=lerp(-0.15,-0.7,k);
-    rig.weapon.rotation.set(lerp(-1.2,-0.3,k),0,0.2);
-    rig.legL.hip.rotation.x=lerp(0.4,0,k); rig.legL.knee.rotation.x=lerp(0.2,0,k);
-    rig.legR.hip.rotation.x=lerp(0.5,0,k);
+    rig.hips.position.y=lerp(1.35,1.0,k);
+    rig.spine.rotation.x=lerp(-0.6,0.1,k); rig.spine.rotation.y=lerp(0.5,0,k);
+    rig.armR.sh.rotation.x=lerp(-2.6,-0.2,k); rig.armR.el.rotation.x=lerp(-0.1,-0.7,k);
+    rig.weapon.rotation.set(lerp(-1.3,-0.3,k),0,0.2);
+    rig.legL.hip.rotation.x=lerp(0.55,0,k); rig.legL.knee.rotation.x=lerp(0.1,0,k);
+    rig.legR.hip.rotation.x=lerp(0.65,0,k); rig.legR.knee.rotation.x=lerp(0.05,0,k);
+    rig.neck.rotation.x=lerp(-0.35,0,k);
+    rig.armL.sh.rotation.x=lerp(-2.0,-0.6,k);
   }
-  rig.armL.sh.rotation.x=-0.6; rig.armL.el.rotation.x=-0.6;
-},hitAt:0.45, arc:{tilt:-1.9,roll:0.2,color:0xffe9b0,lift:true}, rootMotion(u){return{f:bell(clamp((u-0.34)/0.3,0,1),1)*0.3,s:0,y:0};}};
+},hitAt:0.45, arc:{tilt:-1.9,roll:0.2,color:0xffe9b0,lift:true}, rootMotion(u){return{f:bell(clamp((u-0.3)/0.32,0,1),1)*0.4,s:0,y:0};}};
 
 Anims.light4={dur:0.38,onApply(rig,t,u){
-  // quick figure-8 cross slash (eased full spin through hips)
+  // figure-8 cross slash pirouette — hips carry a near-full spin, body tilts through it
   const k=easeInOutSine(clamp(u/0.62,0,1));
-  rig.hips.rotation.y=-PI*k*0.85;      // pirouette carried by the hip chain
-  rig.spine.rotation.y=0.35*S(k*PI*2);
+  rig.hips.rotation.y=-PI*k*1.35;             // ~240° pirouette for real rotational travel
+  rig.spine.rotation.y=0.5*S(k*PI*2);         // torso counter-flex adds whip
+  rig.spine.rotation.z=S(k*PI*2)*0.22;        // lateral bend through the cross
   const a=k*PI*2;
-  rig.armR.sh.rotation.x=-0.2+S(a)*1.2; rig.armR.sh.rotation.z=C(a)*0.9-0.4;
-  rig.armR.el.rotation.x=-0.5;
-  rig.weapon.rotation.set(C(a)*1.2-0.4,0,S(a)*0.9);
-  rig.spine.rotation.x=0.15;
-  rig.hips.position.y=1.0+bell(u,2)*0.1;
-  rig.legL.hip.rotation.x=0.4*bell(clamp((u-0.3)/0.5,0,1),1);
-  rig.armL.sh.rotation.z=0.6; rig.armL.el.rotation.x=-0.8;
-},hitAt:0.35, arc:{tilt:0.9,roll:1.2,color:0xf0d27a}, rootMotion(u){return{f:bell(clamp((u-0.2)/0.5,0,1),1)*0.3,s:0,y:0};}};
+  rig.armR.sh.rotation.x=-0.2+S(a)*1.5; rig.armR.sh.rotation.z=C(a)*1.1-0.4;
+  rig.armR.el.rotation.x=-0.5-S(a)*0.3;
+  rig.weapon.rotation.set(C(a)*1.4-0.4,0,S(a)*1.1);
+  rig.hips.position.y=1.0+bell(u,2)*0.14;     // rise onto the ball of the foot mid-spin
+  rig.neck.rotation.y=lerp(0,-0.35,bell(clamp(u/0.5,0,1)))+0.35*clamp((u-0.5)/0.5,0,1); // head snaps around the spin
+  rig.legL.hip.rotation.x=0.55*bell(clamp((u-0.25)/0.5,0,1),1); // free leg lifts through the pivot
+  rig.legL.knee.rotation.x=-0.7*bell(clamp((u-0.25)/0.5,0,1),1);
+  rig.legR.hip.rotation.x=-0.15*bell(u,1);    // pivot leg coils slightly
+  rig.armL.sh.rotation.z=0.6+S(a)*0.5; rig.armL.el.rotation.x=-0.8; // off-arm extends to balance the turn
+},hitAt:0.35, arc:{tilt:0.9,roll:1.2,color:0xf0d27a}, rootMotion(u){return{f:bell(clamp((u-0.15)/0.55,0,1),1)*0.42,s:0,y:0};}};
 
 
 Anims.light5={dur:0.72,onApply(rig,t,u){
-  // finisher: big overhead slam both-hands, ground shockwave
-  if(u<0.4){ const k=easeInOutCubic(u/0.4); // raise high, arch back
-    rig.hips.position.y=1.0+k*0.15;
-    rig.spine.rotation.x=lerp(0.1,-0.6,k); rig.spine.rotation.y=lerp(0,0.3,k);
-    rig.armR.sh.rotation.x=lerp(-0.2,2.8,k); rig.armR.sh.rotation.z=lerp(-0.1,-0.35,k);
-    rig.armR.el.rotation.x=lerp(-0.7,-0.2,k);
-    rig.armL.sh.rotation.x=lerp(-0.6,2.6,k); rig.armL.el.rotation.x=lerp(-0.8,-0.4,k);
-    rig.weapon.rotation.set(lerp(-0.3,3.0,k),0,0.15);
-    rig.legL.hip.rotation.x=-k*0.2; rig.legR.hip.rotation.x=-k*0.3; rig.legR.knee.rotation.x=k*0.5;
-  } else if(u<0.58){ const k=easeInQuad((u-0.4)/0.18); // SLAM
-    rig.hips.position.y=lerp(1.15,0.8,k);
-    rig.spine.rotation.x=lerp(-0.6,0.75,k); rig.spine.rotation.y=lerp(0.3,-0.1,k);
-    rig.armR.sh.rotation.x=lerp(2.8,-1.1,k); rig.armR.el.rotation.x=-0.15;
-    rig.armL.sh.rotation.x=lerp(2.6,-1.2,k);
-    rig.weapon.rotation.set(lerp(3.0,-1.4,k),0,0.1);
-    rig.legL.hip.rotation.x=lerp(-0.2,0.5,k); rig.legL.knee.rotation.x=lerp(0,0.8,k);
-    rig.legR.hip.rotation.x=lerp(-0.3,0.2,k); rig.legR.knee.rotation.x=lerp(0.5,1.0,k);
-  } else { const k=easeOutCubic((u-0.58)/0.42); // settle
-    rig.hips.position.y=lerp(0.8,1.0,k);
-    rig.spine.rotation.x=lerp(0.75,0.05,k);
-    rig.armR.sh.rotation.x=lerp(-1.1,-0.2,k); rig.armL.sh.rotation.x=lerp(-1.2,-0.4,k);
-    rig.weapon.rotation.set(lerp(-1.4,-0.3,k),0,0.2);
-    rig.legL.hip.rotation.x=lerp(0.5,0,k); rig.legL.knee.rotation.x=lerp(0.8,0,k);
-    rig.legR.hip.rotation.x=lerp(0.2,0,k); rig.legR.knee.rotation.x=lerp(1.0,0,k);
+  // finisher: both-hands overhead slam with a rising-then-crashing full-body arc
+  if(u<0.4){ const k=easeInOutCubic(u/0.4); // raise high, arch back, rise onto toes
+    rig.hips.position.y=1.0+k*0.2;
+    rig.spine.rotation.x=lerp(0.1,-0.8,k); rig.spine.rotation.y=lerp(0,0.45,k);
+    rig.armR.sh.rotation.x=lerp(-0.2,3.0,k); rig.armR.sh.rotation.z=lerp(-0.1,-0.45,k);
+    rig.armR.el.rotation.x=lerp(-0.7,-0.15,k);
+    rig.armL.sh.rotation.x=lerp(-0.6,2.8,k); rig.armL.el.rotation.x=lerp(-0.8,-0.3,k);
+    rig.weapon.rotation.set(lerp(-0.3,3.2,k),0,0.15);
+    rig.neck.rotation.x=lerp(0,-0.3,k);            // head tilts back with the arch
+    rig.legL.hip.rotation.x=-k*0.3; rig.legR.hip.rotation.x=-k*0.4; rig.legR.knee.rotation.x=k*0.6;
+  } else if(u<0.58){ const k=easeInQuad((u-0.4)/0.18); // SLAM — everything crashes down at once
+    rig.hips.position.y=lerp(1.2,0.72,k);
+    rig.spine.rotation.x=lerp(-0.8,0.95,k); rig.spine.rotation.y=lerp(0.45,-0.15,k);
+    rig.armR.sh.rotation.x=lerp(3.0,-1.3,k); rig.armR.el.rotation.x=-0.1;
+    rig.armL.sh.rotation.x=lerp(2.8,-1.4,k);
+    rig.weapon.rotation.set(lerp(3.2,-1.6,k),0,0.1);
+    rig.neck.rotation.x=lerp(-0.3,0.4,k);         // head snaps down into the strike
+    rig.legL.hip.rotation.x=lerp(-0.3,0.6,k); rig.legL.knee.rotation.x=lerp(0,0.9,k); // crash into a deep lunge
+    rig.legR.hip.rotation.x=lerp(-0.4,0.25,k); rig.legR.knee.rotation.x=lerp(0.6,1.2,k);
+  } else { const k=easeOutCubic((u-0.58)/0.42); // settle up out of the lunge
+    rig.hips.position.y=lerp(0.72,1.0,k);
+    rig.spine.rotation.x=lerp(0.95,0.05,k);
+    rig.neck.rotation.x=lerp(0.4,0,k);
+    rig.armR.sh.rotation.x=lerp(-1.3,-0.2,k); rig.armL.sh.rotation.x=lerp(-1.4,-0.4,k);
+    rig.weapon.rotation.set(lerp(-1.6,-0.3,k),0,0.2);
+    rig.legL.hip.rotation.x=lerp(0.6,0,k); rig.legL.knee.rotation.x=lerp(0.9,0,k);
+    rig.legR.hip.rotation.x=lerp(0.25,0,k); rig.legR.knee.rotation.x=lerp(1.2,0,k);
   }
-},hitAt:0.5, arc:{tilt:0.05,roll:0,color:0xfff2a8,big:true}, rootMotion(u){return{f:bell(clamp((u-0.36)/0.34,0,1),1)*0.45,s:0,y:0};}};
+},hitAt:0.5, arc:{tilt:0.05,roll:0,color:0xfff2a8,big:true}, rootMotion(u){return{f:bell(clamp((u-0.32)/0.36,0,1),1)*0.7,s:0,y:0};}};
 
 // ---------- HEAVY ----------
 Anims.heavy={dur:0.86,onApply(rig,t,u){
-  // slow menacing draw-back → devastating thrust-cleave hybrid
+  // slow menacing draw-back → devastating thrust-cleave hybrid (huge wind-through travel)
   if(u<0.5){ const k=easeInOutCubic(u/0.5);
-    rig.hips.rotation.y=lerp(0,-0.85,k); rig.spine.rotation.y=lerp(0,-0.5,k); rig.spine.rotation.x=lerp(0,0.2,k);
-    rig.armR.sh.rotation.x=lerp(0,0.6,k); rig.armR.sh.rotation.z=lerp(-0.1,-1.4,k);
-    rig.armR.el.rotation.x=lerp(-0.3,-1.8,k);
-    rig.weapon.rotation.set(lerp(-0.3,-0.2,k),0,lerp(0.2,2.4,k)); // blade drawn far back horizontal
-    rig.hips.position.y=1.0-k*0.12;
-    rig.legR.hip.rotation.x=-k*0.5; rig.legR.knee.rotation.x=k*0.8;
-    rig.armL.sh.rotation.x=lerp(-0.3,-0.8,k); rig.armL.el.rotation.x=-1.0;
-  } else if(u<0.62){ const k=easeInQuad((u-0.5)/0.12); // LUNGE-CLEAVE
-    rig.hips.rotation.y=lerp(-0.85,0.95,k); rig.spine.rotation.y=lerp(-0.5,0.75,k); rig.spine.rotation.x=lerp(0.2,0.4,k);
-    rig.armR.sh.rotation.x=lerp(0.6,-0.6,k); rig.armR.sh.rotation.z=lerp(-1.35,0.75,k);
-    rig.armR.el.rotation.x=lerp(-1.8,-0.15,k);
-    rig.weapon.rotation.set(lerp(-0.2,1.1,k),0,lerp(2.3,-0.9,k));
-    rig.hips.position.y=lerp(0.88,1.05,k);
-    rig.legR.hip.rotation.x=lerp(-0.5,0.7,k); rig.legR.knee.rotation.x=lerp(0.8,0.3,k);
+    rig.hips.rotation.y=lerp(0,-1.15,k); rig.spine.rotation.y=lerp(0,-0.75,k); rig.spine.rotation.x=lerp(0,0.3,k);
+    rig.armR.sh.rotation.x=lerp(0,0.75,k); rig.armR.sh.rotation.z=lerp(-0.1,-1.6,k);
+    rig.armR.el.rotation.x=lerp(-0.3,-1.95,k);
+    rig.weapon.rotation.set(lerp(-0.3,-0.2,k),0,lerp(0.2,2.7,k)); // blade drawn far back horizontal
+    rig.hips.position.y=1.0-k*0.18;                               // sink deep into the rear stance
+    rig.neck.rotation.y=lerp(0,-0.3,k);                           // glare past the shoulder at the target
+    rig.legR.hip.rotation.x=-k*0.7; rig.legR.knee.rotation.x=k*1.05; // loaded spring leg
+    rig.legL.hip.rotation.x=k*0.2;
+    rig.armL.sh.rotation.x=lerp(-0.3,-1.0,k); rig.armL.el.rotation.x=-1.0; // off-arm reaches forward for aim/balance
+  } else if(u<0.62){ const k=easeInQuad((u-0.5)/0.12); // LUNGE-CLEAVE — release the whole spring
+    rig.hips.rotation.y=lerp(-1.15,1.25,k); rig.spine.rotation.y=lerp(-0.75,0.95,k); rig.spine.rotation.x=lerp(0.3,0.5,k);
+    rig.armR.sh.rotation.x=lerp(0.75,-0.8,k); rig.armR.sh.rotation.z=lerp(-1.6,0.95,k);
+    rig.armR.el.rotation.x=lerp(-1.95,-0.1,k);
+    rig.weapon.rotation.set(lerp(-0.2,1.3,k),0,lerp(2.7,-1.1,k));
+    rig.hips.position.y=lerp(0.82,1.12,k);                        // drive up-and-through
+    rig.neck.rotation.y=lerp(-0.3,0.35,k);
+    rig.legR.hip.rotation.x=lerp(-0.7,0.9,k); rig.legR.knee.rotation.x=lerp(1.05,0.2,k); // explosive step-out
+    rig.legL.hip.rotation.x=lerp(0.2,-0.3,k);
+    rig.armL.sh.rotation.x=lerp(-1.0,0.6,k);                      // off-arm whips back for counterbalance
   } else { const k=easeOutCubic((u-0.62)/0.38);
-    rig.hips.rotation.y=lerp(0.95,0,k); rig.spine.rotation.y=lerp(0.75,0,k); rig.spine.rotation.x=lerp(0.4,0.05,k);
-    rig.armR.sh.rotation.x=lerp(-0.6,-0.3,k); rig.armR.sh.rotation.z=lerp(0.8,-0.1,k);
-    rig.weapon.rotation.set(lerp(1.1,-0.3,k),0,lerp(-1,0.2,k));
-    rig.legR.hip.rotation.x=lerp(0.7,0,k); rig.legR.knee.rotation.x=lerp(0.3,0,k);
+    rig.hips.rotation.y=lerp(1.25,0,k); rig.spine.rotation.y=lerp(0.95,0,k); rig.spine.rotation.x=lerp(0.5,0.05,k);
+    rig.armR.sh.rotation.x=lerp(-0.8,-0.3,k); rig.armR.sh.rotation.z=lerp(0.95,-0.1,k);
+    rig.armR.el.rotation.x=lerp(-0.1,-0.7,k);
+    rig.weapon.rotation.set(lerp(1.3,-0.3,k),0,lerp(-1.1,0.2,k));
+    rig.hips.position.y=lerp(1.12,1.0,k);
+    rig.neck.rotation.y=lerp(0.35,0,k);
+    rig.legR.hip.rotation.x=lerp(0.9,0,k); rig.legR.knee.rotation.x=lerp(0.2,0,k);
+    rig.legL.hip.rotation.x=lerp(-0.3,0,k);
+    rig.armL.sh.rotation.x=lerp(0.6,-0.3,k);
   }
-},hitAt:0.56, arc:{tilt:0.3,roll:-0.8,color:0xff8a30,big:true}, heavy:true, rootMotion(u){return{f:bell(clamp((u-0.46)/0.3,0,1),1)*0.9,s:0,y:0};}};
+},hitAt:0.56, arc:{tilt:0.3,roll:-0.8,color:0xff8a30,big:true}, heavy:true, rootMotion(u){return{f:bell(clamp((u-0.42)/0.34,0,1),1)*1.1,s:0,y:0};}};
 
 // ---------- PARRY / BLOCK ----------
 Anims.blockIdle={dur:1,loop:true,onApply(rig,t){
