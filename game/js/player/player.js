@@ -2,11 +2,12 @@
 import * as THREE from 'three';
 import { Anims, animHitCheck } from './anims.js';
 import { buildKnight } from './model.js';
-import { clamp, lerp, smoothstep, angleWrap, approachAngle, rand, dist2, easeOutCubic } from '../core/mathx.js';
+import { clamp, lerp, smoothstep, angleWrap, approachAngle, rand, dist2, easeOutCubic, easeOutBack } from '../core/mathx.js';
 import { GameState, FXBus } from '../core/state.js';
 
 const GRAV=-26;
 const COMBO_WINDOW=0.42;   // seconds after hit-frame to chain next light
+const easeInOutCubicLocal=x=>x<0.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
 const LIGHTS=['light1','light2','light3','light4','light5'];
 
 export class Player {
@@ -73,6 +74,15 @@ export class Player {
     const a=Anims[name]; if(!a) return;
     this.animName=name; this.anim=a; this.animT=0; this.attackHasHit=false; this.chainQueued=false;
     if(a.heavy||a.ult||name.startsWith('light')) this.combatActive=true;
+    // whole-body attack "commitment": the torso pitches/rolls INTO the strike
+    // around the hip pivot (feet stay planted) and snaps back on impact —
+    // exactly the weight-transfer feel of the parry bash, per attack type
+    if(name.startsWith('light')||name==='heavy'){
+      const commit={ light1:[0.26,-0.30], light2:[0.20,0.34], light3:[-0.30,0.0],
+                     light4:[0.10,0.42],   light5:[0.50,0.0],  heavy:[0.42,-0.28] }[name];
+      this._leanX=commit[0]; this._leanZ=commit[1];
+      this._leanHold=(name==='heavy'?0.17:0.12); this._leanFade=(name==='heavy'?0.34:0.26);
+    }
   }
 
   // ---------- main update ----------
@@ -462,6 +472,23 @@ export class Player {
     const adv=clamp(GameState.timeScale>=1?rawRT:dt,0,0.034);
     this.animT+=adv;
 
+    // attack commitment lean envelope: pitch/roll of the WHOLE torso around the
+    // hip pivot, ramping up through the windup, held into impact, easing out
+    {
+      const isAtk=this.state==='attack'&&(this.animName.startsWith('light')||this.animName==='heavy');
+      if(isAtk){
+        const u=clamp(this.animT/(this.anim?this.anim.dur:0.4),0,1);
+        const h=this._leanHold||0.12, f=this._leanFade||0.26;
+        const e = u<h ? easeOutBack(clamp(u/Math.max(h,1e-4),0,1))
+              : u<h+f ? 1-easeInOutCubicLocal((u-h)/f)
+              : 0;
+        this._leanCurX=(this._leanX||0)*e; this._leanCurZ=(this._leanZ||0)*e;
+      } else {
+        this._leanCurX=lerp(this._leanCurX||0,0,Math.min(1,adv*10));
+        this._leanCurZ=lerp(this._leanCurZ||0,0,Math.min(1,adv*10));
+      }
+    }
+
     // capture the pose BEFORE any reset so we can crossfade out of it
     const prevPose=capturePose(rig);
 
@@ -472,6 +499,7 @@ export class Player {
     for(const l of [rig.legL,rig.legR]){l.hip.rotation.set(0,0,0);l.knee.rotation.set(0,0,0);}
     rig.weapon.rotation.set(0,0,0);
     rig.hips.position.y=1.0;
+    rig.hips.rotation.z=0;
 
     // resolve which clip plays this frame
     let name=this.animName;
@@ -504,9 +532,9 @@ export class Player {
       }
     }
 
-    // light temporal smoothing (25%) — kills single-frame spikes while keeping
+    // light temporal smoothing (20%) — kills single-frame spikes while keeping
     // strikes snappy; the eased keyframes themselves now do most of the work
-    const w=(this.anim&&!this.anim.loop)?0.25:0;
+    const w=(this.anim&&!this.anim.loop)?0.2:0;
     blendPose(rig,prevPose,w);
 
     // crossfade ~0.1s whenever the active clip changes (incl. into/out of attacks)
@@ -581,7 +609,10 @@ function finishPose(pl,rig,adv){
   // apply world transform
   rig.root.position.copy(pl.position);
   rig.root.rotation.y=pl.facing;
-  rig.root.rotation.z=0;
+  // attack commitment lean: pitch/roll the WHOLE torso around the hip pivot so
+  // every strike is a real weight shift (feet stay planted), like the parry bash
+  rig.body.rotation.x=lerp(rig.body.rotation.x, pl._leanCurX||0, Math.min(1,adv*24));
+  rig.body.rotation.z=lerp(rig.body.rotation.z, pl._leanCurZ||0, Math.min(1,adv*24));
   // cape sway: lag behind motion (cheap spring on each segment)
   const spd=Math.hypot(pl.lastVx||0,pl.lastVz||0);
   for(let i=0;i<rig.capeMeshes.length;i++){
